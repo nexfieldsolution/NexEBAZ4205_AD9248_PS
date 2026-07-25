@@ -1,0 +1,480 @@
+`timescale 1ns / 1ps
+
+module top_ov5640_ps (
+    // PS7 DDR
+    inout  [14:0]   DDR_addr,
+    inout  [2:0]    DDR_ba,
+    inout           DDR_cas_n,
+    inout           DDR_ck_n,
+    inout           DDR_ck_p,
+    inout           DDR_cke,
+    inout           DDR_cs_n,
+    inout  [3:0]    DDR_dm,
+    inout  [31:0]   DDR_dq,
+    inout  [3:0]    DDR_dqs_n,
+    inout  [3:0]    DDR_dqs_p,
+    inout           DDR_odt,
+    inout           DDR_ras_n,
+    inout           DDR_reset_n,
+    inout           DDR_we_n,
+    // PS7 FIXED_IO
+    inout           FIXED_IO_ddr_vrn,
+    inout           FIXED_IO_ddr_vrp,
+    inout  [53:0]   FIXED_IO_mio,
+    inout           FIXED_IO_ps_clk,
+    inout           FIXED_IO_ps_porb,
+    inout           FIXED_IO_ps_srstb,
+    // OV5640 DVP interface
+    input           ov5640_pclk,
+    input           ov5640_vsync,
+    input           ov5640_href,
+    input  [7:0]    ov5640_data,
+    inout           ov5640_sioc,
+    inout           ov5640_siod,
+    output          ov5640_pwdn,
+    output          ov5640_reset,
+
+    // HDMI output (TMDS)
+    output          HDMI_CLK_N,
+    output          HDMI_CLK_P,
+    output [2:0]    HDMI_N,
+    output [2:0]    HDMI_P
+);
+
+    // FCLK_CLK0: PS7 fabric 클럭 (내부 wire, 외부 핀 아님)
+    wire FCLK_CLK0;
+
+    // ----------------------------------------------------------------
+    // AXI HP0 wires (OV5640 capture → DDR3 write)
+    // ----------------------------------------------------------------
+    wire [31:0] hp0_awaddr;  wire [5:0] hp0_awid;   wire [3:0] hp0_awlen;
+    wire [2:0]  hp0_awsize;  wire [1:0] hp0_awburst; wire [1:0] hp0_awlock;
+    wire [3:0]  hp0_awcache; wire [2:0] hp0_awprot;  wire [3:0] hp0_awqos;
+    wire        hp0_awvalid; wire       hp0_awready;
+    wire [63:0] hp0_wdata;   wire [5:0] hp0_wid;     wire [7:0] hp0_wstrb;
+    wire        hp0_wlast;   wire       hp0_wvalid;   wire       hp0_wready;
+    wire [5:0]  hp0_bid;     wire [1:0] hp0_bresp;    wire       hp0_bvalid;
+    wire        hp0_bready;
+    wire [31:0] hp0_araddr;  wire [5:0] hp0_arid;    wire [3:0] hp0_arlen;
+    wire [2:0]  hp0_arsize;  wire [1:0] hp0_arburst;  wire [1:0] hp0_arlock;
+    wire [3:0]  hp0_arcache; wire [2:0] hp0_arprot;   wire [3:0] hp0_arqos;
+    wire        hp0_arvalid; wire       hp0_arready;
+    wire [63:0] hp0_rdata;   wire [5:0] hp0_rid;      wire [1:0] hp0_rresp;
+    wire        hp0_rlast;   wire       hp0_rvalid;    wire       hp0_rready;
+
+    // ----------------------------------------------------------------
+    // AXI HP1 wires (DDR3 read → display)
+    // ----------------------------------------------------------------
+    wire [31:0] hp1_awaddr;  wire [5:0] hp1_awid;   wire [3:0] hp1_awlen;
+    wire [2:0]  hp1_awsize;  wire [1:0] hp1_awburst; wire [1:0] hp1_awlock;
+    wire [3:0]  hp1_awcache; wire [2:0] hp1_awprot;  wire [3:0] hp1_awqos;
+    wire        hp1_awvalid; wire       hp1_awready;
+    wire [63:0] hp1_wdata;   wire [5:0] hp1_wid;     wire [7:0] hp1_wstrb;
+    wire        hp1_wlast;   wire       hp1_wvalid;   wire       hp1_wready;
+    wire [5:0]  hp1_bid;     wire [1:0] hp1_bresp;    wire       hp1_bvalid;
+    wire        hp1_bready;
+    wire [31:0] hp1_araddr;  wire [5:0] hp1_arid;    wire [3:0] hp1_arlen;
+    wire [2:0]  hp1_arsize;  wire [1:0] hp1_arburst;  wire [1:0] hp1_arlock;
+    wire [3:0]  hp1_arcache; wire [2:0] hp1_arprot;   wire [3:0] hp1_arqos;
+    wire        hp1_arvalid; wire       hp1_arready;
+    wire [63:0] hp1_rdata;   wire [5:0] hp1_rid;      wire [1:0] hp1_rresp;
+    wire        hp1_rlast;   wire       hp1_rvalid;    wire       hp1_rready;
+
+    // ----------------------------------------------------------------
+    // PS7 block design instance
+    // ----------------------------------------------------------------
+    design_1_wrapper u_ps7 (
+        .DDR_addr           (DDR_addr),
+        .DDR_ba             (DDR_ba),
+        .DDR_cas_n          (DDR_cas_n),
+        .DDR_ck_n           (DDR_ck_n),
+        .DDR_ck_p           (DDR_ck_p),
+        .DDR_cke            (DDR_cke),
+        .DDR_cs_n           (DDR_cs_n),
+        .DDR_dm             (DDR_dm),
+        .DDR_dq             (DDR_dq),
+        .DDR_dqs_n          (DDR_dqs_n),
+        .DDR_dqs_p          (DDR_dqs_p),
+        .DDR_odt            (DDR_odt),
+        .DDR_ras_n          (DDR_ras_n),
+        .DDR_reset_n        (DDR_reset_n),
+        .DDR_we_n           (DDR_we_n),
+        .FIXED_IO_ddr_vrn   (FIXED_IO_ddr_vrn),
+        .FIXED_IO_ddr_vrp   (FIXED_IO_ddr_vrp),
+        .FIXED_IO_mio       (FIXED_IO_mio),
+        .FIXED_IO_ps_clk    (FIXED_IO_ps_clk),
+        .FIXED_IO_ps_porb   (FIXED_IO_ps_porb),
+        .FIXED_IO_ps_srstb  (FIXED_IO_ps_srstb),
+        .FCLK_CLK0          (FCLK_CLK0),
+        // AXI HP0
+        .S_AXI_HP0_0_awaddr  (hp0_awaddr),  .S_AXI_HP0_0_awid    (hp0_awid),
+        .S_AXI_HP0_0_awlen   (hp0_awlen),   .S_AXI_HP0_0_awsize  (hp0_awsize),
+        .S_AXI_HP0_0_awburst (hp0_awburst), .S_AXI_HP0_0_awlock  (hp0_awlock),
+        .S_AXI_HP0_0_awcache (hp0_awcache), .S_AXI_HP0_0_awprot  (hp0_awprot),
+        .S_AXI_HP0_0_awqos   (hp0_awqos),   .S_AXI_HP0_0_awvalid (hp0_awvalid),
+        .S_AXI_HP0_0_awready (hp0_awready),
+        .S_AXI_HP0_0_wdata   (hp0_wdata),   .S_AXI_HP0_0_wid     (hp0_wid),
+        .S_AXI_HP0_0_wstrb   (hp0_wstrb),   .S_AXI_HP0_0_wlast   (hp0_wlast),
+        .S_AXI_HP0_0_wvalid  (hp0_wvalid),  .S_AXI_HP0_0_wready  (hp0_wready),
+        .S_AXI_HP0_0_bid     (hp0_bid),     .S_AXI_HP0_0_bresp   (hp0_bresp),
+        .S_AXI_HP0_0_bvalid  (hp0_bvalid),  .S_AXI_HP0_0_bready  (hp0_bready),
+        .S_AXI_HP0_0_araddr  (hp0_araddr),  .S_AXI_HP0_0_arid    (hp0_arid),
+        .S_AXI_HP0_0_arlen   (hp0_arlen),   .S_AXI_HP0_0_arsize  (hp0_arsize),
+        .S_AXI_HP0_0_arburst (hp0_arburst), .S_AXI_HP0_0_arlock  (hp0_arlock),
+        .S_AXI_HP0_0_arcache (hp0_arcache), .S_AXI_HP0_0_arprot  (hp0_arprot),
+        .S_AXI_HP0_0_arqos   (hp0_arqos),   .S_AXI_HP0_0_arvalid (hp0_arvalid),
+        .S_AXI_HP0_0_arready (hp0_arready),
+        .S_AXI_HP0_0_rdata   (hp0_rdata),   .S_AXI_HP0_0_rid     (hp0_rid),
+        .S_AXI_HP0_0_rresp   (hp0_rresp),   .S_AXI_HP0_0_rlast   (hp0_rlast),
+        .S_AXI_HP0_0_rvalid  (hp0_rvalid),  .S_AXI_HP0_0_rready  (hp0_rready),
+        // AXI HP1
+        .S_AXI_HP1_0_awaddr  (hp1_awaddr),  .S_AXI_HP1_0_awid    (hp1_awid),
+        .S_AXI_HP1_0_awlen   (hp1_awlen),   .S_AXI_HP1_0_awsize  (hp1_awsize),
+        .S_AXI_HP1_0_awburst (hp1_awburst), .S_AXI_HP1_0_awlock  (hp1_awlock),
+        .S_AXI_HP1_0_awcache (hp1_awcache), .S_AXI_HP1_0_awprot  (hp1_awprot),
+        .S_AXI_HP1_0_awqos   (hp1_awqos),   .S_AXI_HP1_0_awvalid (hp1_awvalid),
+        .S_AXI_HP1_0_awready (hp1_awready),
+        .S_AXI_HP1_0_wdata   (hp1_wdata),   .S_AXI_HP1_0_wid     (hp1_wid),
+        .S_AXI_HP1_0_wstrb   (hp1_wstrb),   .S_AXI_HP1_0_wlast   (hp1_wlast),
+        .S_AXI_HP1_0_wvalid  (hp1_wvalid),  .S_AXI_HP1_0_wready  (hp1_wready),
+        .S_AXI_HP1_0_bid     (hp1_bid),     .S_AXI_HP1_0_bresp   (hp1_bresp),
+        .S_AXI_HP1_0_bvalid  (hp1_bvalid),  .S_AXI_HP1_0_bready  (hp1_bready),
+        .S_AXI_HP1_0_araddr  (hp1_araddr),  .S_AXI_HP1_0_arid    (hp1_arid),
+        .S_AXI_HP1_0_arlen   (hp1_arlen),   .S_AXI_HP1_0_arsize  (hp1_arsize),
+        .S_AXI_HP1_0_arburst (hp1_arburst), .S_AXI_HP1_0_arlock  (hp1_arlock),
+        .S_AXI_HP1_0_arcache (hp1_arcache), .S_AXI_HP1_0_arprot  (hp1_arprot),
+        .S_AXI_HP1_0_arqos   (hp1_arqos),   .S_AXI_HP1_0_arvalid (hp1_arvalid),
+        .S_AXI_HP1_0_arready (hp1_arready),
+        .S_AXI_HP1_0_rdata   (hp1_rdata),   .S_AXI_HP1_0_rid     (hp1_rid),
+        .S_AXI_HP1_0_rresp   (hp1_rresp),   .S_AXI_HP1_0_rlast   (hp1_rlast),
+        .S_AXI_HP1_0_rvalid  (hp1_rvalid),  .S_AXI_HP1_0_rready  (hp1_rready)
+    );
+
+   
+
+    wire clk_74m25;  // pixel clock (~74.25MHz) → HDMI 720p
+    wire clk_25;     // config clock (25MHz)    → I2C, power-up
+    (* MARK_DEBUG = "true" *) wire config_done;
+
+    // Clock: 50MHz → 74.157MHz (pixel) + 25MHz (config)
+    clocking u_clocking (
+        .CLK_50   (FCLK_CLK0),
+        .CLK_74M25(clk_74m25),
+        .CLK_25   (clk_25)
+    );
+
+    // BUFG: J20(non-SRCC) pclk를 global clock network으로 승격
+    wire pclk_buf;
+    BUFG u_pclk_buf (.I(ov5640_pclk), .O(pclk_buf));
+
+ `ifdef DEBUG
+    (* MARK_DEBUG = "true" *) reg clk12_5_dbg = 0;
+    always @(posedge clk_25) clk12_5_dbg <= ~clk12_5_dbg;
+
+    // pclk 주파수 측정: clk25 ILA에서 두 시점의 값 차이로 역산
+    // 예) 1초 간격 두 캡처에서 차이가 N이면 pclk = N Hz
+    // 예) 25M clk25 사이클 동안 카운터 변화량 M이면 pclk = M × 25M/25M = M Hz
+    (* KEEP = "true" *) reg [25:0] pclk_cnt = 26'd0;
+    always @(posedge pclk_buf) pclk_cnt <= pclk_cnt + 1;
+    (* KEEP = "true" *) wire [25:0] dbg_pclk_cnt = pclk_cnt;
+ `endif
+    // Camera active detection (vsync timeout ~2.68s @ 25MHz)
+    reg vsync_s1 = 0, vsync_s2 = 0, vsync_s3 = 0;
+    always @(posedge clk_25) begin
+        vsync_s1 <= ov5640_vsync;
+        vsync_s2 <= vsync_s1;
+        vsync_s3 <= vsync_s2;
+    end
+    wire vsync_posedge = vsync_s2 & ~vsync_s3;
+
+    // ── 핑퐁 더블버퍼 (4MB 간격, 1080p까지 대응) ──────────────
+    localparam [31:0] FB0_BASE = 32'h1000_0000;
+    localparam [31:0] FB1_BASE = 32'h1040_0000;   // +4MB
+
+    // vsync를 toggle로 FCLK_CLK0 도메인에 전달 (2FF CDC)
+    reg vsync_tog_25 = 1'b0;
+    always @(posedge clk_25)
+        if (vsync_posedge) vsync_tog_25 <= ~vsync_tog_25;
+
+    reg [1:0] vsync_tog_sync = 2'b0;
+    always @(posedge FCLK_CLK0)
+        vsync_tog_sync <= {vsync_tog_sync[0], vsync_tog_25};
+    wire vsync_pulse_fclk = vsync_tog_sync[0] ^ vsync_tog_sync[1];
+
+    // buf_sel: vsync 후 FIFO가 완전히 비워진 뒤 전환
+    // (vsync 시점에 FIFO에 남은 픽셀이 잘못된 버퍼에 쓰이는 것 방지)
+    wire wr_fifo_empty;
+    reg  frame_pending = 1'b0;
+    reg  buf_sel       = 1'b0;   // FCLK_CLK0 도메인
+
+    always @(posedge FCLK_CLK0) begin
+        if (vsync_pulse_fclk)
+            frame_pending <= 1'b1;
+        if (frame_pending && wr_fifo_empty) begin
+            buf_sel       <= ~buf_sel;
+            frame_pending <= 1'b0;
+        end
+    end
+
+    wire [31:0] wr_base = buf_sel ? FB1_BASE : FB0_BASE;  // 카메라 → DDR3
+
+    // buf_sel → disp_clk 동기화 (2FF CDC)
+    reg [1:0] buf_sel_75m = 2'b00;
+    always @(posedge clk_74m25)
+        buf_sel_75m <= {buf_sel_75m[0], buf_sel};
+
+    // rd_sel: 디스플레이 vsync 시점에만 업데이트 → 프레임 중간 전환 방지
+    reg rd_sel = 1'b1;
+    reg disp_vs_d = 1'b0;
+    always @(posedge clk_74m25) begin
+        disp_vs_d <= disp_vs;
+        if (disp_vs && !disp_vs_d)          // vsync 상승 에지 = 프레임 끝
+            rd_sel <= ~buf_sel_75m[1];       // 카메라가 쓰지 않는 버퍼로 전환
+    end
+    wire [31:0] rd_base = rd_sel ? FB1_BASE : FB0_BASE;
+
+    reg [25:0] cam_timeout = 26'd0;
+    always @(posedge clk_25) begin
+        if (vsync_posedge)
+            cam_timeout <= 26'd0;
+        else if (!cam_timeout[25])
+            cam_timeout <= cam_timeout + 1;
+    end
+    (* MARK_DEBUG = "true" *) wire camera_active = ~cam_timeout[25];
+
+    // OV5640 power-up sequence (25MHz)
+    // PWDN: active HIGH  (1=powerdown,  0=normal)
+    // RESET: active LOW  (0=in-reset,   1=normal)
+    //   0~ 1ms : PWDN=1, RESET=0  — full shutdown
+    //   1~ 2ms : PWDN=0, RESET=0  — exit powerdown, reset held
+    //   2~16ms : PWDN=0, RESET=1  — camera boots (needs >8192 XCLK ≈ 0.34ms @ 24MHz)
+    //   16ms+  : I2C starts
+    reg [19:0] pwrseq_cnt = 20'd0;
+`ifdef DEBUG
+    (* MARK_DEBUG = "true" *) wire dbg_soft_reset;
+    vio_0 u_vio (
+        .clk       (clk_25),
+        .probe_out0(dbg_soft_reset)
+    );
+    // VIO soft reset: pwrseq_cnt를 0으로 되돌려 PWDN/RESET 타이밍 포함 전체 재시작
+    always @(posedge clk_25) begin
+        if (dbg_soft_reset)
+            pwrseq_cnt <= 20'd0;
+        else if (pwrseq_cnt != 20'hFFFFF)
+            pwrseq_cnt <= pwrseq_cnt + 1;
+    end
+`else
+    always @(posedge clk_25)
+        if (pwrseq_cnt != 20'hFFFFF) pwrseq_cnt <= pwrseq_cnt + 1;
+`endif
+
+`ifdef DEBUG
+    assign ov5640_pwdn  = 1'b0;  // 카메라 PWDN GND 직결 → 항상 0 (dummy 출력)
+    //assign ov5640_pwdn  = (pwrseq_cnt < 20'd25000);
+    //assign ov5640_reset = ~dbg_soft_reset;
+    assign ov5640_reset = (pwrseq_cnt >= 20'd50000);  // VIO→pwrseq_cnt 리셋으로 시퀀스 재실행
+`else
+    assign ov5640_pwdn  = 1'b0;  // 카메라 PWDN GND 직결 → 항상 0 (dummy 출력)
+    //assign ov5640_pwdn  = (pwrseq_cnt < 20'd25000);
+    assign ov5640_reset = (pwrseq_cnt >= 20'd50000);
+`endif
+    wire   pwrseq_done  = (pwrseq_cnt >= 20'd400000);  // done after ~16ms
+
+    // I2C reset: held HIGH during power-up, then pulses HIGH for 128 cycles
+    reg [7:0] i2c_rst_cnt = 8'd0;
+    always @(posedge clk_25) begin
+        if (!pwrseq_done)
+            i2c_rst_cnt <= 8'd0;
+        else if (!i2c_rst_cnt[7])
+            i2c_rst_cnt <= i2c_rst_cnt + 1;
+    end
+    wire i2c_rst = !pwrseq_done | !i2c_rst_cnt[7];
+
+    // I2C config (OV5640 register init)
+    wire [9:0]  lut_index;
+    wire [31:0] lut_data;
+
+    i2c_config u_i2c_config (
+        .rst            (i2c_rst),
+        .clk            (clk_25),
+        .clk_div_cnt    (16'd63),   // SCL ≈ 100kHz @ 25MHz
+        .i2c_addr_2byte (1'b1),
+        .lut_index      (lut_index),
+        .lut_dev_addr   (lut_data[31:24]),
+        .lut_reg_addr   (lut_data[23:8]),
+        .lut_reg_data   (lut_data[7:0]),
+        .error          (),
+        .done           (config_done),
+        .i2c_scl        (ov5640_sioc),
+        .i2c_sda        (ov5640_siod)
+    );
+
+    lut_ov5640_rgb565_1280_720 u_lut (
+        .lut_index (lut_index),
+        .lut_data  (lut_data)
+    );
+
+    // OV5640 capture: 1280x720 full resolution
+    wire [19:0] wr_addr;
+    wire [11:0] wr_data;  // RGB444: [11:8]=R [7:4]=G [3:0]=B
+    wire        wren;
+
+`ifdef DEBUG
+    (* MARK_DEBUG = "true" *) wire dbg_wren  = wren;           // BRAM write enable — never HIGH → capture 불량
+    (* MARK_DEBUG = "true" *) wire dbg_href  = ov5640_href;    // 라인 활성 — never HIGH → 카메라 신호 없음
+    //(* MARK_DEBUG = "true" *) wire dbg_vsync = ov5640_vsync;   // 이전: 주석 처리 → net 이름 ov5640_vsync_IBUF 유지 (ila_insert.tcl과 매칭)
+    (* MARK_DEBUG = "true" *) wire dbg_vsync = ov5640_vsync;   // 실험: MARK_DEBUG 활성 → net 이름 dbg_vsync → ov5640_vsync_IBUF 소실
+    (* MARK_DEBUG = "true" *)(* KEEP = "true" *) wire [7:0] dbg_data = ov5640_data;
+`endif
+
+    ov5640_capture u_capture (
+        .pclk  (pclk_buf),
+        .vsync (ov5640_vsync),
+        .href  (ov5640_href),
+        .d     (ov5640_data),
+        .addr  (wr_addr),
+        .dout  (wr_data),
+        .we    (wren)
+    );
+
+    // ── 테스트 패턴: 왼쪽 640=빨강, 오른쪽 640=파랑 (pclk 도메인) ──
+    reg [10:0] h_cnt = 11'd0;
+    always @(posedge pclk_buf) begin
+        if (ov5640_vsync || !ov5640_href)
+            h_cnt <= 11'd0;
+        else if (wren)
+            h_cnt <= h_cnt + 11'd1;
+    end
+    // wire [11:0] test_pix = (h_cnt < 11'd640) ? 12'hF00 : 12'h00F;
+
+    // ── pwrseq_done → FCLK_CLK0 도메인 동기화 (2FF) ──────────
+    reg aresetn_s1 = 0, aresetn_s2 = 0;
+    always @(posedge FCLK_CLK0) begin
+        aresetn_s1 <= pwrseq_done;
+        aresetn_s2 <= aresetn_s1;
+    end
+    wire axi_aresetn = aresetn_s2;
+
+    // ── AXI HP0 read channel tie-off (HP0는 write 전용) ───────
+    assign hp0_arvalid = 1'b0;
+    assign hp0_araddr  = 32'd0;  assign hp0_arid    = 6'd0;
+    assign hp0_arlen   = 4'd0;   assign hp0_arsize  = 3'd0;
+    assign hp0_arburst = 2'd0;   assign hp0_arlock  = 2'd0;
+    assign hp0_arcache = 4'd0;   assign hp0_arprot  = 3'd0;
+    assign hp0_arqos   = 4'd0;   assign hp0_rready  = 1'b1;
+
+    // ── AXI HP0 writer: OV5640 캡처 → DDR3 ──────────────────
+    axi_hp0_writer #(
+        .DDR3_BASE (32'h1000_0000)
+    ) u_hp0_writer (
+        .pclk      (pclk_buf),
+        .pix_addr  (wr_addr[19:0]),
+        .pix_data  (wr_data),        
+        // .pix_data  (test_pix),
+        .pix_we    (wren),
+        .base_addr  (wr_base),
+        .fifo_empty (wr_fifo_empty),
+        .aclk      (FCLK_CLK0),
+        .aresetn   (axi_aresetn),
+        // AW
+        .awaddr    (hp0_awaddr),  .awid    (hp0_awid),
+        .awlen     (hp0_awlen),   .awsize  (hp0_awsize),
+        .awburst   (hp0_awburst), .awlock  (hp0_awlock),
+        .awcache   (hp0_awcache), .awprot  (hp0_awprot),
+        .awqos     (hp0_awqos),   .awvalid (hp0_awvalid),
+        .awready   (hp0_awready),
+        // W
+        .wdata     (hp0_wdata),   .wid     (hp0_wid),
+        .wstrb     (hp0_wstrb),   .wlast   (hp0_wlast),
+        .wvalid    (hp0_wvalid),  .wready  (hp0_wready),
+        // B
+        .bid       (hp0_bid),     .bresp   (hp0_bresp),
+        .bvalid    (hp0_bvalid),  .bready  (hp0_bready)
+    );
+
+    // ── AXI HP1 write channel tie-off (HP1는 read 전용) ───────
+    assign hp1_awvalid = 1'b0;
+    assign hp1_awaddr  = 32'd0;  assign hp1_awid    = 6'd0;
+    assign hp1_awlen   = 4'd0;   assign hp1_awsize  = 3'd0;
+    assign hp1_awburst = 2'd0;   assign hp1_awlock  = 2'd0;
+    assign hp1_awcache = 4'd0;   assign hp1_awprot  = 3'd0;
+    assign hp1_awqos   = 4'd0;
+    assign hp1_wvalid  = 1'b0;   assign hp1_wdata   = 64'd0;
+    assign hp1_wid     = 6'd0;   assign hp1_wstrb   = 8'd0;
+    assign hp1_wlast   = 1'b0;   assign hp1_bready  = 1'b1;
+
+    // ── AXI HP1 reader: DDR3 → 디스플레이 라인 버퍼 ─────────────
+    wire [10:0] disp_cam_col;
+    wire [9:0]  disp_cam_row;
+    wire [11:0] rd_data;
+
+    axi_hp1_reader #(
+        .DDR3_BASE (32'h1000_0000)
+    ) u_hp1_reader (
+        .base_addr   (rd_base),
+        .disp_clk    (clk_74m25),
+        .src_row     (disp_cam_row),
+        .src_col     (disp_cam_col),
+        .frame_pixel (rd_data),
+        .aclk        (FCLK_CLK0),
+        .aresetn     (axi_aresetn),
+        // AR
+        .araddr      (hp1_araddr),  .arid    (hp1_arid),
+        .arlen       (hp1_arlen),   .arsize  (hp1_arsize),
+        .arburst     (hp1_arburst), .arlock  (hp1_arlock),
+        .arcache     (hp1_arcache), .arprot  (hp1_arprot),
+        .arqos       (hp1_arqos),   .arvalid (hp1_arvalid),
+        .arready     (hp1_arready),
+        // R
+        .rdata       (hp1_rdata),   .rid     (hp1_rid),
+        .rresp       (hp1_rresp),   .rlast   (hp1_rlast),
+        .rvalid      (hp1_rvalid),  .rready  (hp1_rready)
+    );
+
+    reg [11:0] rd_data_reg = (h_cnt < 11'd640) ? 12'hF00 : 12'h00F;
+    // ── Display: HDMI 1280x720 타이밍, 320x240 소스 4x/3x 업스케일 ──
+    wire [3:0] disp_r, disp_g, disp_b;
+    wire       disp_hs, disp_vs, disp_de;
+
+    display #(
+        .CAM_COLS(1280),
+        .CAM_ROWS(720)
+    ) u_display (
+        .clk74m25      (clk_74m25),
+        .vga_red       (disp_r),
+        .vga_green     (disp_g),
+        .vga_blue      (disp_b),
+        .vga_hsync     (disp_hs),
+        .vga_vsync     (disp_vs),
+        .vga_de        (disp_de),
+        .cam_col       (disp_cam_col),
+        .cam_row       (disp_cam_row),
+        .frame_pixel   (rd_data),
+        .camera_active (camera_active)
+    );
+
+    // ── HDMI: rgb2dvi (25MHz 픽셀 클럭 → TMDS) ──────────────────
+    // vid_pData 순서: {R[7:0], B[7:0], G[7:0]}
+    // frame_pixel: [11:8]=R, [7:4]=G, [3:0]=B → 4→8비트 확장
+    wire [7:0] hdmi_r = {disp_r, disp_r};
+    wire [7:0] hdmi_g = {disp_g, disp_g};
+    wire [7:0] hdmi_b = {disp_b, disp_b};
+
+    rgb2dvi #(
+        .kClkPrimitive ("MMCM"),
+        .kClkRange     (2)       // 74.25MHz: kClkRange=2 (50~80MHz pixel, TMDS 371.25MHz)
+    ) u_rgb2dvi (
+        .PixelClk    (clk_74m25),
+        .TMDS_Clk_n  (HDMI_CLK_N),
+        .TMDS_Clk_p  (HDMI_CLK_P),
+        .TMDS_Data_n (HDMI_N),
+        .TMDS_Data_p (HDMI_P),
+        .aRst        (1'b0),
+        .vid_pData   ({hdmi_r, hdmi_b, hdmi_g}),
+        .vid_pHSync  (disp_hs),
+        .vid_pVDE    (disp_de),
+        .vid_pVSync  (disp_vs)
+    );
+ 
+
+endmodule
