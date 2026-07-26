@@ -8,7 +8,7 @@ EBAZ4205 + 660Z069A_V13 IO board + DAC904 (14BIT 165MSPS) → DDS 신호발생�
 
 | 위에서 | 옆에서 |
 |--------|--------|
-| ![top](NexEBAZ4205_DAC904_PS_1.jpg) | ![side](NexEBAZ4205_DAC904_PS_2.jpg) |
+| <img src="NexEBAZ4205_DAC904_PS_1.jpg" width="360"> | <img src="NexEBAZ4205_DAC904_PS_2.jpg" width="360"> |
 
 - EBAZ4205(하단) + 660Z069A_V13 IO 보드(중간) + DAC904(상단) 스택 구성
 - JTAG-XILINX 케이블로 FPGA 프로그래밍, BNC 케이블로 아날로그 출력
@@ -32,6 +32,9 @@ ps7_init
 ps7_post_config
 fpga -f .../vivado/project_1/dac904_ps.runs/impl_1/top_dac904_ps.bit
 ```
+
+## 실행결과 - 1차
+<img src="NexEBAZ4205_DAC904_PS_result1.jpg" width="400">
 
 ## Architecture
 
