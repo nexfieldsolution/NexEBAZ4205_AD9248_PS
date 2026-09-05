@@ -1,0 +1,4 @@
+vivado/**/* linguist-vendored
+*.html linguist-vendored
+*.xml linguist-vendored
+*.tcl linguist-vendored

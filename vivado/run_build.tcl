@@ -1,4 +1,4 @@
-# 프로젝트 생성 (없으면 신규, 있으면 -force로 재생성) → 프로젝트가 이미 열림
+# 프로젝트 생성 → 합성 → 구현 → 비트파일
 source vivado/build.tcl
 reset_run synth_1
 launch_runs synth_1 -jobs 4
@@ -7,9 +7,9 @@ reset_run impl_1
 launch_runs impl_1 -to_step write_bitstream -jobs 4
 wait_on_run impl_1
 
-# DDR PHY 타이밍 패치: Zynq7000 참조값으로 교정 (FCLK는 변경 안 함)
+# DDR PHY 타이밍 패치: Zynq7000 참조값으로 교정
 foreach gen_dir {
-    vivado/project_1/dac904_ps.gen/sources_1/bd/design_1/ip/design_1_processing_system7_0_0/ps7_init.tcl
+    vivado/project_1/ad9248_ps.gen/sources_1/bd/design_1/ip/design_1_processing_system7_0_0/ps7_init.tcl
 } {
     if {[file exists $gen_dir]} {
         exec sed -i \
@@ -23,3 +23,8 @@ foreach gen_dir {
         puts "Patched: $gen_dir"
     }
 }
+
+# XSA 내보내기 (Vitis 플랫폼용)
+write_hw_platform -fixed -force -include_bit \
+    -output vivado/ad9248_ps.xsa
+puts "INFO: XSA exported → vivado/ad9248_ps.xsa"

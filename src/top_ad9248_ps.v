@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module top_dac904_ps (
+module top_ad9248_ps (
     // PS7 DDR
     inout  [14:0]   DDR_addr,
     inout  [2:0]    DDR_ba,
@@ -25,21 +25,22 @@ module top_dac904_ps (
     inout           FIXED_IO_ps_porb,
     inout           FIXED_IO_ps_srstb,
 
-    // HDMI output (TMDS) - 향후 파형 표시
+    // HDMI output (TMDS)
     output          HDMI_CLK_N,
     output          HDMI_CLK_P,
     output [2:0]    HDMI_N,
     output [2:0]    HDMI_P,
 
-    // DAC904 interface
-    output          dac_clk,
-    output [13:0]   dac_data
+    // AD9248 interface
+    output          adc_encode,   // ENCODE clock → ADC (FPGA 출력, 50 MHz)
+    output          adc_oeb,      // Output Enable Bar, active-low (항상 0)
+    input  [13:0]   adc_data      // ADC parallel data → FPGA (offset binary)
 );
 
     wire FCLK_CLK0;
 
     // ----------------------------------------------------------------
-    // AXI HP0 wires (tie-off)
+    // AXI HP0 wires (Phase 1: tie-off, Phase 2에서 DMA로 연결)
     // ----------------------------------------------------------------
     wire [31:0] hp0_awaddr;  wire [5:0] hp0_awid;   wire [3:0] hp0_awlen;
     wire [2:0]  hp0_awsize;  wire [1:0] hp0_awburst; wire [1:0] hp0_awlock;
@@ -57,7 +58,7 @@ module top_dac904_ps (
     wire        hp0_rlast;   wire       hp0_rvalid;    wire       hp0_rready;
 
     // ----------------------------------------------------------------
-    // AXI HP1 wires (tie-off)
+    // AXI HP1 wires (Phase 1: tie-off)
     // ----------------------------------------------------------------
     wire [31:0] hp1_awaddr;  wire [5:0] hp1_awid;   wire [3:0] hp1_awlen;
     wire [2:0]  hp1_awsize;  wire [1:0] hp1_awburst; wire [1:0] hp1_awlock;
@@ -105,7 +106,7 @@ module top_dac904_ps (
     assign hp1_rready  = 1'b1;
 
     // ----------------------------------------------------------------
-    // PS7 block design instance
+    // PS7 block design
     // ----------------------------------------------------------------
     design_1_wrapper u_ps7 (
         .DDR_addr           (DDR_addr),
@@ -184,12 +185,56 @@ module top_dac904_ps (
         .CLK_25   (clk_25)
     );
 
-    // ── DAC904: DDS 모듈 구현 전 placeholder ─────────────────────
-    // dac_clk: 50MHz (FCLK_CLK0) → 향후 MMCM 출력으로 교체
-    assign dac_clk  = FCLK_CLK0;
-    assign dac_data = 14'd0;
+    assign adc_oeb = 1'b0;
 
-    // ── HDMI: 향후 파형 표시 (현재 blank 출력) ───────────────────
+    // ── ENCODE 클록 출력 (ODDR → D18 핀) ─────────────────────────
+    // ODDR로 클록 출력: 글리치 없이 안정적인 50% duty cycle 보장
+    ODDR #(
+        .DDR_CLK_EDGE ("SAME_EDGE"),
+        .INIT         (1'b0),
+        .SRTYPE       ("SYNC")
+    ) oddr_encode (
+        .Q  (adc_encode),
+        .C  (FCLK_CLK0),
+        .CE (1'b1),
+        .D1 (1'b1),
+        .D2 (1'b0),
+        .R  (1'b0),
+        .S  (1'b0)
+    );
+
+    // ── AD9248 캡처 ───────────────────────────────────────────────
+    (* mark_debug = "true" *) wire [13:0] adc_sample;
+    (* mark_debug = "true" *) wire [13:0] adc_sample_s;
+
+    adc_capture u_adc_capture (
+        .clk      (FCLK_CLK0),
+        .adc_raw  (adc_data),
+        .sample   (adc_sample),
+        .sample_s (adc_sample_s)
+    );
+
+    // ── HDMI: 색상바 출력 ─────────────────────────────────────────
+    wire [3:0] disp_r, disp_g, disp_b;
+    wire disp_hs, disp_vs, disp_de;
+
+    display #(
+        .CAM_COLS (320),
+        .CAM_ROWS (240)
+    ) u_display (
+        .clk74m25     (clk_74m25),
+        .vga_red      (disp_r),
+        .vga_green    (disp_g),
+        .vga_blue     (disp_b),
+        .vga_hsync    (disp_hs),
+        .vga_vsync    (disp_vs),
+        .vga_de       (disp_de),
+        .cam_col      (),
+        .cam_row      (),
+        .frame_pixel  (12'd0),
+        .camera_active(1'b0)
+    );
+
     rgb2dvi #(
         .kClkPrimitive ("MMCM"),
         .kClkRange     (2)
@@ -200,10 +245,10 @@ module top_dac904_ps (
         .TMDS_Data_n (HDMI_N),
         .TMDS_Data_p (HDMI_P),
         .aRst        (1'b0),
-        .vid_pData   (24'd0),
-        .vid_pHSync  (1'b0),
-        .vid_pVDE    (1'b0),
-        .vid_pVSync  (1'b0)
+        .vid_pData   ({disp_r, disp_r, disp_g, disp_g, disp_b, disp_b}),
+        .vid_pHSync  (disp_hs),
+        .vid_pVDE    (disp_de),
+        .vid_pVSync  (disp_vs)
     );
 
 endmodule

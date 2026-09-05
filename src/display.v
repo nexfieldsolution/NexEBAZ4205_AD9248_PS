@@ -73,14 +73,14 @@ module display #(
     reg [3:0] bar_r, bar_g, bar_b;
     always @(*) begin
         case (bar_idx)
-            3'd0: {bar_r, bar_g, bar_b} = {4'hF, 4'hF, 4'hF}; // 흰색
-            3'd1: {bar_r, bar_g, bar_b} = {4'hF, 4'hF, 4'h0}; // 노랑
-            3'd2: {bar_r, bar_g, bar_b} = {4'h0, 4'hF, 4'hF}; // 청록
-            3'd3: {bar_r, bar_g, bar_b} = {4'h0, 4'hF, 4'h0}; // 초록
-            3'd4: {bar_r, bar_g, bar_b} = {4'hF, 4'h0, 4'hF}; // 자홍
-            3'd5: {bar_r, bar_g, bar_b} = {4'hF, 4'h0, 4'h0}; // 빨강
-            3'd6: {bar_r, bar_g, bar_b} = {4'h0, 4'h0, 4'hF}; // 파랑
-            3'd7: {bar_r, bar_g, bar_b} = {4'h0, 4'h0, 4'h0}; // 검정
+            3'd0: {bar_r, bar_g, bar_b} = {4'h0, 4'h0, 4'h0}; // 검정
+            3'd1: {bar_r, bar_g, bar_b} = {4'h0, 4'h0, 4'hF}; // 파랑
+            3'd2: {bar_r, bar_g, bar_b} = {4'hF, 4'h0, 4'h0}; // 빨강
+            3'd3: {bar_r, bar_g, bar_b} = {4'hF, 4'h0, 4'hF}; // 자홍
+            3'd4: {bar_r, bar_g, bar_b} = {4'h0, 4'hF, 4'h0}; // 초록
+            3'd5: {bar_r, bar_g, bar_b} = {4'h0, 4'hF, 4'hF}; // 청록
+            3'd6: {bar_r, bar_g, bar_b} = {4'hF, 4'hF, 4'h0}; // 노랑
+            3'd7: {bar_r, bar_g, bar_b} = {4'hF, 4'hF, 4'hF}; // 흰색
         endcase
     end
 

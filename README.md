@@ -34,6 +34,7 @@ ENCODE(50MHz) ← ODDR ← FCLK_CLK0
 | 단계 | 내용 | 상태 |
 |------|------|------|
 | 1 | 기본 캡처 + ILA | ✅ 코드 완료, 테스트 대기 |
+| 1.5 | Vitis 베어메탈 — PS LED 점멸 / PS UART 출력 | ⏳ 다음 작업 |
 | 2 | AXI HP0 DMA → DDR3 | 예정 |
 | 3 | HDMI 파형 표시 | 예정 |
 | 4 | PS AXI-Lite 제어 | 예정 |
@@ -74,29 +75,38 @@ wait_on_run impl_1
 
 ## AD9248 핀 연결
 
-커넥터 위치: IO보드 pos 6~15 (2×10핀, 5열 건너뛰기)
-제거 핀: D19(6A ADC GND핀→FPGA HDMI충돌 cut), F20(7B HDMI CLK-), F19(8B HDMI CLK+), 3.3V(11A), GND(12A)
-ENCODE: 터미널 블록 → 와이어 → D18(5A) 직결 (헤더 미경유)
+커넥터 위치: IO보드 pos 5~14 (2×10핀, 4열 건너뛰기)
+cut핀: D19(6A,HDMI_P[0]), F20(7B,HDMI_CLK-), F19(8B,HDMI_CLK+), 3.3V(11A), GND(12A)
+ENCODE: D20(pos5B) → IO보드 뒷면 점프선 → D18(pos5A) → FPGA
+OEB: M19 점프선 (FPGA→ADC, 항상 Low로 구동)
+점프선 5비트: D0→P19, D3→N17, D5→P20, D10→P18, D12→U20
 
 | ADC 신호 | FPGA 핀 | IO pos | 연결 방식 | 비고 |
 |---------|--------|--------|---------|------|
-| ENCODE  | D18    | 5A     | 와이어   | 터미널 블록→D18 직결 (헤더 미경유) |
-| —       | —      | 6A     | **cut**  | D19: ADC GND핀 → FPGA HDMI충돌 제거 |
-| D0      | E19    | 7A     | 직접     | |
-| D1      | —      | 7B     | **미연결** | F20 cut (HDMI CLK-) |
-| D2      | K17    | 8A     | 직접     | |
-| D3      | —      | 8B     | **미연결** | F19 cut (HDMI CLK+) |
-| D4      | J18    | 9A     | 직접     | |
-| D5      | G20    | 9B     | 직접     | |
-| D6      | H20    | 10A    | 직접     | |
-| D7      | G19    | 10B    | 직접     | |
-| D8      | —      | 11A    | **미연결** | 3.3V pin cut |
-| D9      | J19    | 11B    | 직접     | |
-| D10     | —      | 12A    | **미연결** | GND pin cut |
-| D11     | K18    | 12B    | 직접     | |
-| D12     | J20    | 13A    | 직접     | |
-| D13     | K19    | 13B    | 직접     | |
+| ENCODE  | D18    | 5A     | 뒷면 점프 | D20(5B)→뒷면→D18 |
+| OEB     | M19    | —      | 점프선    | Active-low, FPGA가 0 구동 |
+| D0      | P19    | 6A     | 점프선    | D19 cut(HDMI_P[0]) |
+| D1      | H18    | 6B     | 직접      | |
+| D2      | E19    | 7A     | 직접      | |
+| D3      | N17    | 7B     | 점프선    | F20 cut(HDMI CLK-) |
+| D4      | K17    | 8A     | 직접      | |
+| D5      | P20    | 8B     | 점프선    | F19 cut(HDMI CLK+) |
+| D6      | J18    | 9A     | 직접      | |
+| D7      | G20    | 9B     | 직접      | |
+| D8      | H20    | 10A    | 직접      | |
+| D9      | G19    | 10B    | 직접      | |
+| D10     | P18    | 11A    | 점프선    | 3.3V pin cut |
+| D11     | J19    | 11B    | 직접      | |
+| D12     | U20    | 12A    | 점프선    | GND pin cut |
+| D13     | K18    | 12B    | 직접      | |
 
-연결된 데이터 비트 (10개): D0, D2, D4, D5, D6, D7, D9, D11, D12, D13
-미연결 비트 (4개): D1, D3, D8, D10
+직접 연결 9비트: D1(H18), D2(E19), D4(K17), D6(J18), D7(G20), D8(H20), D9(G19), D11(J19), D13(K18)
+점프선 5비트: D0(P19), D3(N17), D5(P20), D10(P18), D12(U20)
+
+## EBAZ4205 보드의 PS Debug UART 연결
+
+![UART Connection](./NexEBAZ4205_AD9248_PS-uart-connection.jpg)
+
+PS UART1 (MIO24/25) → J7 커넥터 → USB-UART 3.3V 동글 → PC  
+`gtkterm --port /dev/ttyUSB0 --speed 115200`
 
