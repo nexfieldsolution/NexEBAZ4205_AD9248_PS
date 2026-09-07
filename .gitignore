@@ -55,3 +55,32 @@ vivado/**/*.gen/sources_1/bd/design_1/sim/
 vivado/**/*.gen/sources_1/bd/design_1/synth/
 
 vivado/**/*.srcs/
+
+# Vitis - 빌드 결과물만 무시 (소스/구조 파일은 추적)
+vitis/**/build/
+vitis/**/build_configs/
+vitis/**/zynq_fsbl_bsp/
+vitis/**/*.o
+vitis/**/*.d
+vitis/**/*.a
+vitis/**/*.elf
+vitis/**/*.elf.size
+vitis/**/_ide/
+vitis/**/hw/
+vitis/**/*.xsa
+vitis/**/*.bit
+vitis/**/ps7_cortexa9_0/
+vitis/FSBL/zynq_fsbl/linker_files/
+vitis/FSBL/export/.buildstatus
+vitis/FSBL/export/FSBL/FSBL.xpfm
+vitis/FSBL/export/FSBL/sw/FSBL.spfm
+vitis/FSBL/export/FSBL/sw/standalone_ps7_cortexa9_0/Xilinx.spec
+vitis/FSBL/zynq_fsbl/.clangd
+vitis/logs/
+vitis/.wsdata/
+*qemu/
+vivado/zynq7000_all.xsa
+*.cmake
+*.json
+*.txt
+*.yaml
