@@ -25,6 +25,5 @@ foreach gen_dir {
 }
 
 # XSA 내보내기 (Vitis 플랫폼용)
-write_hw_platform -fixed -force -include_bit \
-    -output vivado/ad9248_ps.xsa
+write_hw_platform -fixed -force -include_bit vivado/ad9248_ps.xsa
 puts "INFO: XSA exported → vivado/ad9248_ps.xsa"

@@ -1121,7 +1121,7 @@
             "value": "0"
           },
           "PCW_EN_EMIO_TTC0": {
-            "value": "0"
+            "value": "1"
           },
           "PCW_EN_EMIO_TTC1": {
             "value": "0"
@@ -1205,7 +1205,7 @@
             "value": "0"
           },
           "PCW_EN_TTC0": {
-            "value": "0"
+            "value": "1"
           },
           "PCW_EN_TTC1": {
             "value": "0"
@@ -2059,6 +2059,12 @@
           "PCW_S_AXI_HP1_ID_WIDTH": {
             "value": "6"
           },
+          "PCW_S_AXI_HP2_DATA_WIDTH": {
+            "value": "64"
+          },
+          "PCW_S_AXI_HP3_DATA_WIDTH": {
+            "value": "64"
+          },
           "PCW_TPIU_PERIPHERAL_CLKSRC": {
             "value": "External"
           },
@@ -2087,7 +2093,10 @@
             "value": "1"
           },
           "PCW_TTC0_PERIPHERAL_ENABLE": {
-            "value": "0"
+            "value": "1"
+          },
+          "PCW_TTC0_TTC0_IO": {
+            "value": "EMIO"
           },
           "PCW_TTC1_CLK0_PERIPHERAL_CLKSRC": {
             "value": "CPU_1X"
@@ -2109,6 +2118,9 @@
           },
           "PCW_TTC1_PERIPHERAL_ENABLE": {
             "value": "0"
+          },
+          "PCW_TTC_PERIPHERAL_FREQMHZ": {
+            "value": "50"
           },
           "PCW_UART0_PERIPHERAL_ENABLE": {
             "value": "0"
